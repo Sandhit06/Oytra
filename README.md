@@ -2,7 +2,7 @@
 
 This folder contains a Task 1 report for the RealWorld Conduit demo, an n8n GitHub morning-brief workflow, an optional uptime-monitor workflow, a dashboard demo, and a small Playwright characterization spec.
 
-<<<<<<< HEAD
+
 **Role:** Automation & QA Developer (AI-Built Web App Debugging & n8n Workflow Engineering)
 ## **Video Link** : https://drive.google.com/file/d/1dqtBwuOPi0WzycOC2vgrEkgbmrgb89Up/view?usp=sharing
 
@@ -22,7 +22,6 @@ This folder contains a Task 1 report for the RealWorld Conduit demo, an n8n GitH
 
 From this folder in PowerShell:
 
-<<<<<<< HEAD
 This project is a complete, production-grade submission for the **Automation & QA Developer Take-Home Skills Assessment**, designed not only to fulfill every required deliverable in Tasks 1, 2, and the Bonus Task, but also to include **unique engineering differentiators** (an interactive QA & n8n Simulation Command Center web app, an automated [Playwright](https://playwright.dev) E2E bug-reproduction suite, and a one-command Docker Compose test harness).
 
 | Assessment Component | Primary Deliverable File | What It Accomplishes | Unique Differentiator Included | 
