@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     container_name: oytra-n8n-qa
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     environment:
       - N8N_HOST=localhost
       - N8N_PORT=5678
@@ -16,9 +14,8 @@ services:
       - GENERIC_TIMEZONE=Asia/Kolkata
       - SLACK_MORNING_BRIEF_CHANNEL=${SLACK_MORNING_BRIEF_CHANNEL:-#eng-morning-brief}
       - SLACK_ALERTS_CHANNEL=${SLACK_ALERTS_CHANNEL:-#qa-automation-alerts}
-      - GSHEETS_WATCHLIST_DOC_ID=${GSHEETS_WATCHLIST_DOC_ID:-1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms}
+      - GSHEETS_WATCHLIST_DOC_ID=${GSHEETS_WATCHLIST_DOC_ID:-}
       - TARGET_WEBAPP_URL=${TARGET_WEBAPP_URL:-https://demo.realworld.io}
-      - TARGET_API_URL=${TARGET_API_URL:-https://api.realworld.io/api/tags}
     volumes:
       - n8n_data:/home/node/.n8n
       - ./workflows:/home/node/workflows:ro

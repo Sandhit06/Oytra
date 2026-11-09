@@ -1,16 +1,28 @@
-# Oytra Automation & QA Developer Assessment — Complete Engineering Submission
+# Oytra Automation & QA Assessment
 
-**Candidate:** Sandhit Karmakar (`sandhitkarmakar@gmail.com`)
+This folder contains a Task 1 report for the RealWorld Conduit demo, an n8n GitHub morning-brief workflow, an optional uptime-monitor workflow, a dashboard demo, and a small Playwright characterization spec.
 
+<<<<<<< HEAD
 **Role:** Automation & QA Developer (AI-Built Web App Debugging & n8n Workflow Engineering)
 ## **Video Link** : https://drive.google.com/file/d/1dqtBwuOPi0WzycOC2vgrEkgbmrgb89Up/view?usp=sharing
 
 **Target Web App Audited:** [RealWorld "Conduit" SaaS Blogging Platform](https://github.com/gothinkster/realworld) ([Live Demo](https://sandhit.vercel.app/), [React/Redux Frontend](https://github.com/gothinkster/react-redux-realworld-example-app), [Node/Express/Prisma Backend](https://github.com/gothinkster/node-express-prisma-v1-official-app))
+=======
+## What is included
 
-**Workflows Engineered:** [n8n](https://n8n.io) API Integration Morning Brief + 5-Minute Uptime & Latency SLA Monitor
+- `Task1_QA_Report_Sandhit_Karmakar.pdf` — seven reported issues and a root-cause analysis. The target application's source is not included, so the report's implementation-level and security claims are not independently verified by this repository.
+- `workflows/Task2_Workflow_Sandhit_Karmakar.json` — hourly or webhook-triggered GitHub search, top-five filtering/scoring, README and Hacker News enrichment, and Slack/Google Sheets routing.
+- `workflows/Bonus_UptimeMonitor_Sandhit_Karmakar.json` — five-minute frontend status/elapsed-time monitor and daily summary. It stores its last-24-hour samples in n8n workflow static data.
+- `dashboard/index.html` — a browser-based explainer with simulated workflow and uptime activity. It does not connect to n8n or prove a real execution.
+- `screenshots/` — illustrative workflow and output diagrams. They are not screenshots from the n8n application and should not be submitted as execution evidence.
+- `tests/conduit_qa.spec.ts` — optional exploratory checks against the public demo. It requires Playwright to be installed separately; this repository has no package manifest or Playwright configuration.
+>>>>>>> 036bc3f (changes added)
 
-## 1. What This Project Does (End-to-End Architecture Overview)
+## Start n8n locally (Windows + Docker Desktop)
 
+From this folder in PowerShell:
+
+<<<<<<< HEAD
 This project is a complete, production-grade submission for the **Automation & QA Developer Take-Home Skills Assessment**, designed not only to fulfill every required deliverable in Tasks 1, 2, and the Bonus Task, but also to include **unique engineering differentiators** (an interactive QA & n8n Simulation Command Center web app, an automated [Playwright](https://playwright.dev) E2E bug-reproduction suite, and a one-command Docker Compose test harness).
 
 | Assessment Component | Primary Deliverable File | What It Accomplishes | Unique Differentiator Included | 
@@ -140,36 +152,39 @@ git push -u origin main
 
 ```
 # Option A: Using our included Docker Compose file
+=======
+```powershell
+>>>>>>> 036bc3f (changes added)
 docker compose up -d
-
-# Option B: Using npx (no Docker required)
-npx n8n
-
+docker compose ps
 ```
 
-1. Open `http://localhost:5678` in your browser.
+Open <http://localhost:5678> and create the local owner account. In n8n, import `workflows/Task2_Workflow_Sandhit_Karmakar.json` from the Workflows screen. The bonus workflow can be imported separately. The JSON files are not imported automatically by Docker Compose.
 
-2. Go to **Workflows → Add Workflow → Import from File...** and import:
+Create and select the credentials named by the nodes before activating a workflow:
 
-   * `workflows/Task2_Workflow_Sandhit_Karmakar.json`
+1. **GitHub Header Auth** — header `Authorization`, value `Bearer YOUR_GITHUB_TOKEN`.
+2. **Slack** — connect your Slack account and make sure the bot can post to your selected channel.
+3. **Google Sheets OAuth2** — connect your account, create a sheet you can edit, and add the tabs `Emerging_Repos_Under_1000_Stars` and, if using the bonus workflow, `Uptime_24h_Log`.
 
-   * `workflows/Bonus_UptimeMonitor_Sandhit_Karmakar.json`
+Copy `.env.example` to `.env`, then set `GSHEETS_WATCHLIST_DOC_ID` to your spreadsheet ID. Do not commit `.env` or put API tokens in it; keep tokens in n8n Credentials. `SLACK_MORNING_BRIEF_CHANNEL`, `SLACK_ALERTS_CHANNEL`, and `TARGET_WEBAPP_URL` can also be set there. Restart after changing environment values with `docker compose up -d`.
 
-3. In **Credentials**, add your free GitHub Personal Access Token under `GitHub REST API Token (Header Auth)` (`Name: Authorization`, `Value: Bearer ghp_...`) and your Slack Bot Token / Webhook (or Discord/Email node) and run a test execution.
+The workflows import inactive to avoid scheduled API calls before setup. Activate Task 2 only after assigning the credentials and verifying the sheet and channel names. It polls hourly and acknowledges webhook requests immediately; inspect **Executions** in n8n for the run result. The bonus polls every five minutes and posts a daily summary in the configured timezone.
 
-4. Test the webhook from your terminal using our included script:
+To test Task 2 from PowerShell after activation:
 
-   ```
-   ./scripts/test_webhooks.sh
-   
-   ```
+```powershell
+$body = '{"query":"topic:automation+topic:ai"}'
+Invoke-RestMethod -Method Post -Uri "http://localhost:5678/webhook/morning-brief" -ContentType "application/json" -Body $body
+```
 
-## 5. What to Add Next (Future Production Roadmap & Interview Talking Points)
+For two webhook acknowledgement checks, run `.\scripts\test_webhooks.ps1`. An HTTP acknowledgement confirms that n8n received the request; inspect **Executions** to verify workflow completion and any Slack/Sheets delivery.
 
-If asked in your follow-up interview *"How would you evolve this setup for production at Oytra?"*, highlight these **6 high-leverage additions**:
+To stop n8n without deleting its saved data, run `docker compose down`. Avoid `docker compose down -v` unless you intend to remove the persistent n8n data volume.
 
-1. **GitHub Actions CI/CD Gate with Playwright Trace Artifacts:** Wire `tests/conduit_qa.spec.ts` into a `.github/workflows/qa-regression.yml` workflow that runs on every Pull Request against preview deployments and uploads Playwright trace `.zip` recordings and video snapshots on failure.
+## Known limits
 
+<<<<<<< HEAD
 2. **Idempotency & Deduplication Layer in n8n (`Remove Duplicates` Node / Redis Cache):** Add n8n's `Remove Duplicates` node keyed by `repo_id` (or store seen repository IDs in `$getWorkflowStaticData('global')`) so the hourly schedule trigger only alerts `#eng-morning-brief` when a *new* repository enters the Top 5.
 
 3. **LLM-Powered Self-Healing Test Selectors & Crash Triaging:** Add an OpenAI/Gemini node inside the Bonus Uptime Monitor's error branch that inspects failed HTTP payloads or Playwright DOM snapshots, classifies whether the failure is an infrastructure outage (`502`/`503`) vs. a frontend regression, and auto-drafts a GitHub Issue with reproduction steps.
@@ -206,3 +221,9 @@ If asked in your follow-up interview *"How would you evolve this setup for produ
 <p align="center">
     Made with ❤️ by <a href="https://github.com/Sandhit06">Sandhit Karmakar</a>
 </p>
+=======
+- Successful Slack/Sheets delivery depends on your own credentials, channel membership, spreadsheet ID, and tab names. No external account credentials are included.
+- n8n's execution history is the source of truth for whether a live run succeeded. The included screenshots and dashboard are demonstrations only.
+- Workflow static data for the uptime monitor persists with successful active executions; manual editor runs may not persist it between runs.
+- Use [Task2_README.md](Task2_README.md) for the one-page workflow description requested by the assignment.
+>>>>>>> 036bc3f (changes added)

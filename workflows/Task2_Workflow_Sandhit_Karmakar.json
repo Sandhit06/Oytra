@@ -1,5 +1,5 @@
 {
-  "name": "Task 2 \u2014 Daily AI & Automation Morning Brief (Sandhit Karmakar)",
+  "name": "Task 2 — Daily AI & Automation Morning Brief (Sandhit Karmakar)",
   "nodes": [
     {
       "parameters": {
@@ -25,7 +25,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "morning-brief",
-        "responseMode": "responseNode",
+        "responseMode": "onReceived",
         "options": {}
       },
       "id": "b1a10002-1111-4111-8111-000000000002",
@@ -49,7 +49,7 @@
           "parameters": [
             {
               "name": "q",
-              "value": "={{ $json.body?.query || 'topic:automation+topic:ai+pushed:>2026-10-01' }}"
+              "value": "={{ ($json.body?.query || 'topic:automation topic:ai').split('+').join(' ') }}"
             },
             {
               "name": "sort",
@@ -113,7 +113,8 @@
       "position": [
         740,
         260
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -183,7 +184,8 @@
       "position": [
         1540,
         200
-      ]
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -228,7 +230,7 @@
           "value": "={{ $env.SLACK_MORNING_BRIEF_CHANNEL || '#eng-morning-brief' }}",
           "mode": "name"
         },
-        "text": "=:rocket: *Morning Brief \u2014 Breakout Repo (#{{ $json.rank }})* | *<{{ $json.html_url }}|{{ $json.full_name }}>*\n\u2022 *Metrics:* \u2b50 {{ $json.stars }} stars | \ud83c\udf74 {{ $json.forks }} forks | \ud83d\udcc8 Velocity: `{{ $json.velocity_score }}` | \ud83d\udcbb `{{ $json.language }}`\n\u2022 *Summary:* {{ $json.description }}\n\u2022 *README Excerpt:* _{{ $json.readme_excerpt }}_\n\u2022 *Community Signal (HN):* {{ $json.hn_points }} pts / {{ $json.hn_comments }} comments ({{ $json.hn_top_discussion }})",
+        "text": "=:rocket: *Morning Brief — Breakout Repo (#{{ $json.rank }})* | *<{{ $json.html_url }}|{{ $json.full_name }}>*\n• *Metrics:* ⭐ {{ $json.stars }} stars | 🍴 {{ $json.forks }} forks | 📈 Velocity: `{{ $json.velocity_score }}` | 💻 `{{ $json.language }}`\n• *Summary:* {{ $json.description }}\n• *README Excerpt:* _{{ $json.readme_excerpt }}_\n• *Community Signal (HN):* {{ $json.hn_points }} pts / {{ $json.hn_comments }} comments ({{ $json.hn_top_discussion }})",
         "otherOptions": {}
       },
       "id": "b1a10009-1111-4111-8111-000000000009",
@@ -244,14 +246,18 @@
           "id": "cred-slack-bot-token",
           "name": "Slack Morning Brief Bot Token"
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "={{ $env.GSHEETS_WATCHLIST_DOC_ID || '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms' }}",
+          "value": "={{ $env.GSHEETS_WATCHLIST_DOC_ID || '' }}",
           "mode": "id"
         },
         "sheetName": {
@@ -278,42 +284,19 @@
           "id": "cred-google-sheets-oauth",
           "name": "Google Sheets Service OAuth2"
         }
-      }
-    },
-    {
-      "parameters": {
-        "respondWith": "allIncomingItems",
-        "options": {
-          "responseCode": 200
-        }
       },
-      "id": "b1a10011-1111-4111-8111-000000000011",
-      "name": "7. Respond to Webhook (200 OK)",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        2360,
-        200
-      ]
-    },
-    {
-      "parameters": {},
-      "id": "b1a10012-1111-4111-8111-000000000012",
-      "name": "Global Error Trigger",
-      "type": "n8n-nodes-base.errorTrigger",
-      "typeVersion": 1,
-      "position": [
-        740,
-        560
-      ]
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500,
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "// Standardized Error Sanitizer & Fallback Formatter (Prevents Silent Crashes)\nconst errItem = $input.first()?.json || {};\nconst errorMsg = errItem.error?.message || errItem.message || 'Upstream API returned non-200 status or timed out';\nconst statusCode = errItem.error?.httpCode || errItem.statusCode || 503;\n\nreturn [\n  {\n    json: {\n      status: 'FALLBACK_TRIGGERED',\n      workflow_name: 'Task 2 \u2014 Daily AI & Automation Morning Brief',\n      failed_at: new Date().toISOString(),\n      http_code: statusCode,\n      error_detail: errorMsg,\n      remediation: 'Check GitHub API rate limit (X-RateLimit-Remaining) or credentials in n8n Credential Store.'\n    }\n  }\n];"
+        "jsCode": "// Standardized Error Sanitizer & Fallback Formatter (Prevents Silent Crashes)\nconst errItem = $input.first()?.json || {};\nconst errorMsg = errItem.error?.message || errItem.message || 'Upstream API returned non-200 status or timed out';\nconst statusCode = errItem.error?.httpCode || errItem.statusCode || 503;\n\nreturn [\n  {\n    json: {\n      status: 'FALLBACK_TRIGGERED',\n      workflow_name: 'Task 2 — Daily AI & Automation Morning Brief',\n      failed_at: new Date().toISOString(),\n      http_code: statusCode,\n      error_detail: errorMsg,\n      remediation: 'Check GitHub API rate limit (X-RateLimit-Remaining) or credentials in n8n Credential Store.'\n    }\n  }\n];"
       },
       "id": "b1a10013-1111-4111-8111-000000000013",
-      "name": "8. Format Error & Fallback Log (Code)",
+      "name": "7. Format Error & Fallback Log (Code)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -332,11 +315,11 @@
           "value": "={{ $env.SLACK_ALERTS_CHANNEL || '#qa-automation-alerts' }}",
           "mode": "name"
         },
-        "text": "=:rotating_light: *n8n Workflow Alert \u2014 Morning Brief Fallback Triggered*\n\u2022 *Status:* `{{ $json.status }}` (HTTP `{{ $json.http_code }}`)\n\u2022 *Error:* {{ $json.error_detail }}\n\u2022 *Timestamp:* `{{ $json.failed_at }}`\n\u2022 *Action:* {{ $json.remediation }}",
+        "text": "=:rotating_light: *n8n Workflow Alert — Morning Brief Fallback Triggered*\n• *Status:* `{{ $json.status }}` (HTTP `{{ $json.http_code }}`)\n• *Error:* {{ $json.error_detail }}\n• *Timestamp:* `{{ $json.failed_at }}`\n• *Action:* {{ $json.remediation }}",
         "otherOptions": {}
       },
       "id": "b1a10014-1111-4111-8111-000000000014",
-      "name": "9. Send Failure Alert to Slack",
+      "name": "8. Send Failure Alert to Slack",
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.2,
       "position": [
@@ -385,7 +368,7 @@
         ],
         [
           {
-            "node": "8. Format Error & Fallback Log (Code)",
+            "node": "7. Format Error & Fallback Log (Code)",
             "type": "main",
             "index": 0
           }
@@ -397,6 +380,13 @@
         [
           {
             "node": "3a. Enrich: Fetch Repo README API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "7. Format Error & Fallback Log (Code)",
             "type": "main",
             "index": 0
           }
@@ -414,7 +404,7 @@
         ],
         [
           {
-            "node": "8. Format Error & Fallback Log (Code)",
+            "node": "7. Format Error & Fallback Log (Code)",
             "type": "main",
             "index": 0
           }
@@ -437,6 +427,13 @@
         [
           {
             "node": "5. IF Stars > 1000 (Threshold)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "7. Format Error & Fallback Log (Code)",
             "type": "main",
             "index": 0
           }
@@ -463,9 +460,10 @@
     },
     "6a. Post Breakout Digest to Slack": {
       "main": [
+        [],
         [
           {
-            "node": "7. Respond to Webhook (200 OK)",
+            "node": "7. Format Error & Fallback Log (Code)",
             "type": "main",
             "index": 0
           }
@@ -474,31 +472,21 @@
     },
     "6b. Log Emerging Repo to Google Sheets": {
       "main": [
+        [],
         [
           {
-            "node": "7. Respond to Webhook (200 OK)",
+            "node": "7. Format Error & Fallback Log (Code)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Global Error Trigger": {
+    "7. Format Error & Fallback Log (Code)": {
       "main": [
         [
           {
-            "node": "8. Format Error & Fallback Log (Code)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "8. Format Error & Fallback Log (Code)": {
-      "main": [
-        [
-          {
-            "node": "9. Send Failure Alert to Slack",
+            "node": "8. Send Failure Alert to Slack",
             "type": "main",
             "index": 0
           }
@@ -506,7 +494,7 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
@@ -514,7 +502,7 @@
   },
   "versionId": "c2f89012-49a1-4b23-9e12-987654321001",
   "meta": {
-    "templateCredsSetupCompleted": true,
+    "templateCredsSetupCompleted": false,
     "instanceId": "oytra-qa-assessment-sandhit-karmakar"
   },
   "tags": [
