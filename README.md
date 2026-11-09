@@ -221,9 +221,4 @@ To stop n8n without deleting its saved data, run `docker compose down`. Avoid `d
 <p align="center">
     Made with ❤️ by <a href="https://github.com/Sandhit06">Sandhit Karmakar</a>
 </p>
-=======
-- Successful Slack/Sheets delivery depends on your own credentials, channel membership, spreadsheet ID, and tab names. No external account credentials are included.
-- n8n's execution history is the source of truth for whether a live run succeeded. The included screenshots and dashboard are demonstrations only.
-- Workflow static data for the uptime monitor persists with successful active executions; manual editor runs may not persist it between runs.
-- Use [Task2_README.md](Task2_README.md) for the one-page workflow description requested by the assignment.
->>>>>>> 036bc3f (changes added)
+
