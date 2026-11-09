@@ -21,8 +21,6 @@ This project is a complete, production-grade submission for the **Automation & Q
 
 ## 2. Repository Directory Structure (Ready to Push to GitHub)
 
-When you unzip `Oytra_Automation_QA_Submission.zip` and push it to your public GitHub repository, your repository will have the following clean structure:
-
 ```
 oytra-automation-qa-assessment/
 ├── README.md                                       # Master documentation, setup & interview guide
