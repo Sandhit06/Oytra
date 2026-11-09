@@ -10,7 +10,7 @@
 
 ## 1. What This Project Does (End-to-End Architecture Overview)
 
-This project is a complete, production-grade submission for the **Automation & QA Developer Take-Home Skills Assessment**, designed not only to fulfill every required deliverable in Tasks 1, 2, and the Bonus Task, but also to include **unique engineering differentiators** (an interactive QA & n8n Simulation Command Center web app, an automated [Playwright](https://playwright.dev) E2E bug-reproduction suite, and a one-command Docker Compose test harness) so your submission immediately stands out.
+This project is a complete, production-grade submission for the **Automation & QA Developer Take-Home Skills Assessment**, designed not only to fulfill every required deliverable in Tasks 1, 2, and the Bonus Task, but also to include **unique engineering differentiators** (an interactive QA & n8n Simulation Command Center web app, an automated [Playwright](https://playwright.dev) E2E bug-reproduction suite, and a one-command Docker Compose test harness).
 
 | Assessment Component | Primary Deliverable File | What It Accomplishes | Unique Differentiator Included | 
 | ----- | ----- | ----- | ----- | 
