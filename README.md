@@ -180,3 +180,30 @@ If asked in your follow-up interview *"How would you evolve this setup for produ
 5. **Synthetic Multi-Step Transaction Monitoring in n8n:** Extend the 5-minute Uptime Monitor from a single `GET` ping to a synthetic transactional check (`POST /api/users/login` → verify JWT issued → `GET /api/articles/feed`) so broken authentication or database write locks are caught even when the static frontend returns `200 OK`.
 
 6. **Contract Testing with Zod / OpenAPI Schema Validation:** Add JSON Schema validation inside the n8n Code node and Playwright API tests to immediately catch silent backend breaking changes common in AI-generated ("vibe-coded") apps.
+
+## Developer
+<table>
+    <tr align="center">
+        <td>
+        Sandhit Karmakar
+        <p align="center">
+            <img src = "https://avatars.githubusercontent.com/u/90787826?v=4" width="150" height="150" alt="Dhruv Shah">
+        </p>
+            <p align="center">
+                <a href="https://github.com/Sandhit06">
+                    <img src="https://res.cloudinary.com/dyz1paeem/image/upload/v1793130084/round-collaboration-social-github-code-circle-network-icon_rk5x5t.svg" width="36" height="36" alt="GitHub"/>
+                </a>
+                <a href="https://www.linkedin.com/in/sandhit-karmakar/" target="_blank">
+                    <img src="https://res.cloudinary.com/dyz1paeem/image/upload/v1793130084/network-linkedin-social-connection-circular-circle-media-icon_vdou3m.svg" width="36" height="36" alt="LinkedIn"/>
+                </a>
+                <a href="mailto:sandhitkarmakar@gmail.com" target="_blank">
+                    <img src="https://res.cloudinary.com/dyz1paeem/image/upload/v1793129062/share-send-email-chat-circle-message-mail-icon_u4rx53.svg" width="36" height="36" alt="Email"/>
+                </a>
+            </p>
+        </td>
+    </tr>
+</table>
+
+<p align="center">
+    Made with ❤️ by <a href="https://github.com/Sandhit06">Sandhit Karmakar</a>
+</p>
