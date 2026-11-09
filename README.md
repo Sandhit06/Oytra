@@ -5,7 +5,7 @@
 **Role:** Automation & QA Developer (AI-Built Web App Debugging & n8n Workflow Engineering)
 ## **Video Link** : https://drive.google.com/file/d/1dqtBwuOPi0WzycOC2vgrEkgbmrgb89Up/view?usp=sharing
 
-**Target Web App Audited:** [RealWorld "Conduit" SaaS Blogging Platform](https://github.com/gothinkster/realworld) ([Live Demo](https://demo.realworld.io), [React/Redux Frontend](https://github.com/gothinkster/react-redux-realworld-example-app), [Node/Express/Prisma Backend](https://github.com/gothinkster/node-express-prisma-v1-official-app))
+**Target Web App Audited:** [RealWorld "Conduit" SaaS Blogging Platform](https://github.com/gothinkster/realworld) ([Live Demo](https://sandhit.vercel.app/), [React/Redux Frontend](https://github.com/gothinkster/react-redux-realworld-example-app), [Node/Express/Prisma Backend](https://github.com/gothinkster/node-express-prisma-v1-official-app))
 
 **Workflows Engineered:** [n8n](https://n8n.io) API Integration Morning Brief + 5-Minute Uptime & Latency SLA Monitor
 
