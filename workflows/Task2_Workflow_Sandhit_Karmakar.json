@@ -1,0 +1,528 @@
+{
+  "name": "Task 2 \u2014 Daily AI & Automation Morning Brief (Sandhit Karmakar)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "b1a10001-1111-4111-8111-000000000001",
+      "name": "Schedule Trigger (Every 1 Hour)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        180,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "morning-brief",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b1a10002-1111-4111-8111-000000000002",
+      "name": "Webhook Trigger (curl / Postman)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        180,
+        420
+      ],
+      "webhookId": "oytra-task2-morning-brief-webhook"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.github.com/search/repositories",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.body?.query || 'topic:automation+topic:ai+pushed:>2026-10-01' }}"
+            },
+            {
+              "name": "sort",
+              "value": "stars"
+            },
+            {
+              "name": "order",
+              "value": "desc"
+            },
+            {
+              "name": "per_page",
+              "value": "15"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "b1a10003-1111-4111-8111-000000000003",
+      "name": "1. Fetch Trending GitHub Repos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-github-header-auth",
+          "name": "GitHub REST API Token (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Filter, calculate composite velocity score, sort descending, and keep Top 5 repositories\nconst rawResponse = $input.first()?.json;\nconst items = Array.isArray(rawResponse?.items) ? rawResponse.items : [];\n\nif (items.length === 0) {\n  throw new Error('GitHub Search API returned zero repository items or malformed payload.');\n}\n\nconst filteredAndScored = items\n  .filter(repo => !repo.archived && !repo.disabled && repo.description)\n  .map(repo => {\n    const stars = Number(repo.stargazers_count || 0);\n    const forks = Number(repo.forks_count || 0);\n    const openIssues = Number(repo.open_issues_count || 0);\n    // Composite traction metric weighting stars, active forks, and issue discussions\n    const velocityScore = stars + (forks * 2) + Math.min(openIssues, 200);\n    return {\n      repo_id: repo.id,\n      name: repo.name,\n      full_name: repo.full_name,\n      owner: repo.owner?.login || 'unknown',\n      stars,\n      forks,\n      open_issues: openIssues,\n      velocity_score: velocityScore,\n      language: repo.language || 'Multi-language',\n      license: repo.license?.spdx_id || 'Unspecified',\n      description: repo.description.slice(0, 220),\n      html_url: repo.html_url,\n      pushed_at: repo.pushed_at\n    };\n  })\n  .sort((a, b) => b.velocity_score - a.velocity_score)\n  .slice(0, 5)\n  .map((repo, idx) => ({\n    json: {\n      rank: idx + 1,\n      ...repo\n    }\n  }));\n\nreturn filteredAndScored;"
+      },
+      "id": "b1a10004-1111-4111-8111-000000000004",
+      "name": "2. Filter, Sort & Keep Top 5 (Code)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/{{ $json.full_name }}/readme",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/vnd.github.v3+json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "id": "b1a10005-1111-4111-8111-000000000005",
+      "name": "3a. Enrich: Fetch Repo README API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1020,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 1500,
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "cred-github-header-auth",
+          "name": "GitHub REST API Token (Header Auth)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://hn.algolia.com/api/v1/search?query={{ encodeURIComponent($('2. Filter, Sort & Keep Top 5 (Code)').item.json.name) }}&tags=story&hitsPerPage=3",
+        "options": {
+          "timeout": 8000
+        }
+      },
+      "id": "b1a10006-1111-4111-8111-000000000006",
+      "name": "3b. Enrich: HackerNews Sentiment API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine Top-5 repo data + decoded GitHub README excerpt + HackerNews discussion signal\nconst baseRepo = $('2. Filter, Sort & Keep Top 5 (Code)').item.json;\nconst readmeNode = $('3a. Enrich: Fetch Repo README API').item?.json || {};\nconst hnNode = $input.item?.json || {};\n\n// Decode Base64 README content from GitHub API and strip markdown badges/headers\nlet readmeExcerpt = 'README summary unavailable.';\nif (readmeNode.content) {\n  try {\n    const rawText = Buffer.from(readmeNode.content, 'base64').toString('utf-8');\n    const cleanLines = rawText\n      .split('\\n')\n      .map(line => line.replace(/!\\[.*?\\]\\(.*?\\)/g, '').replace(/<[^>]+>/g, '').trim())\n      .filter(line => line.length > 30 && !line.startsWith('#') && !line.startsWith('[!'));\n    if (cleanLines.length > 0) {\n      readmeExcerpt = cleanLines.slice(0, 2).join(' ').slice(0, 260) + '...';\n    }\n  } catch (e) {\n    readmeExcerpt = 'README decoded fallback: ' + baseRepo.description;\n  }\n}\n\nconst hnHits = Array.isArray(hnNode.hits) ? hnNode.hits : [];\nconst topHnStory = hnHits[0] || null;\nconst hnTotalPoints = hnHits.reduce((acc, h) => acc + Number(h.points || 0), 0);\nconst hnTotalComments = hnHits.reduce((acc, h) => acc + Number(h.num_comments || 0), 0);\n\nreturn {\n  json: {\n    ...baseRepo,\n    readme_size_bytes: readmeNode.size || 0,\n    readme_excerpt: readmeExcerpt,\n    hn_mentions: hnHits.length,\n    hn_points: hnTotalPoints,\n    hn_comments: hnTotalComments,\n    hn_top_discussion: topHnStory ? `https://news.ycombinator.com/item?id=${topHnStory.objectID}` : 'No recent HN thread',\n    tier: baseRepo.stars > 1000 ? 'HIGH_PRIORITY_BREAKOUT' : 'EMERGING_WATCHLIST',\n    generated_at: new Date().toISOString()\n  }\n};"
+      },
+      "id": "b1a10007-1111-4111-8111-000000000007",
+      "name": "4. Merge Enriched Digest Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-stars-gt-1000",
+              "leftValue": "={{ $json.stars }}",
+              "rightValue": 1000,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b1a10008-1111-4111-8111-000000000008",
+      "name": "5. IF Stars > 1000 (Threshold)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.SLACK_MORNING_BRIEF_CHANNEL || '#eng-morning-brief' }}",
+          "mode": "name"
+        },
+        "text": "=:rocket: *Morning Brief \u2014 Breakout Repo (#{{ $json.rank }})* | *<{{ $json.html_url }}|{{ $json.full_name }}>*\n\u2022 *Metrics:* \u2b50 {{ $json.stars }} stars | \ud83c\udf74 {{ $json.forks }} forks | \ud83d\udcc8 Velocity: `{{ $json.velocity_score }}` | \ud83d\udcbb `{{ $json.language }}`\n\u2022 *Summary:* {{ $json.description }}\n\u2022 *README Excerpt:* _{{ $json.readme_excerpt }}_\n\u2022 *Community Signal (HN):* {{ $json.hn_points }} pts / {{ $json.hn_comments }} comments ({{ $json.hn_top_discussion }})",
+        "otherOptions": {}
+      },
+      "id": "b1a10009-1111-4111-8111-000000000009",
+      "name": "6a. Post Breakout Digest to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        100
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "cred-slack-bot-token",
+          "name": "Slack Morning Brief Bot Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GSHEETS_WATCHLIST_DOC_ID || '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms' }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Emerging_Repos_Under_1000_Stars",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "b1a10010-1111-4111-8111-000000000010",
+      "name": "6b. Log Emerging Repo to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2080,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "cred-google-sheets-oauth",
+          "name": "Google Sheets Service OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "b1a10011-1111-4111-8111-000000000011",
+      "name": "7. Respond to Webhook (200 OK)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2360,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "b1a10012-1111-4111-8111-000000000012",
+      "name": "Global Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        740,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Standardized Error Sanitizer & Fallback Formatter (Prevents Silent Crashes)\nconst errItem = $input.first()?.json || {};\nconst errorMsg = errItem.error?.message || errItem.message || 'Upstream API returned non-200 status or timed out';\nconst statusCode = errItem.error?.httpCode || errItem.statusCode || 503;\n\nreturn [\n  {\n    json: {\n      status: 'FALLBACK_TRIGGERED',\n      workflow_name: 'Task 2 \u2014 Daily AI & Automation Morning Brief',\n      failed_at: new Date().toISOString(),\n      http_code: statusCode,\n      error_detail: errorMsg,\n      remediation: 'Check GitHub API rate limit (X-RateLimit-Remaining) or credentials in n8n Credential Store.'\n    }\n  }\n];"
+      },
+      "id": "b1a10013-1111-4111-8111-000000000013",
+      "name": "8. Format Error & Fallback Log (Code)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1160,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.SLACK_ALERTS_CHANNEL || '#qa-automation-alerts' }}",
+          "mode": "name"
+        },
+        "text": "=:rotating_light: *n8n Workflow Alert \u2014 Morning Brief Fallback Triggered*\n\u2022 *Status:* `{{ $json.status }}` (HTTP `{{ $json.http_code }}`)\n\u2022 *Error:* {{ $json.error_detail }}\n\u2022 *Timestamp:* `{{ $json.failed_at }}`\n\u2022 *Action:* {{ $json.remediation }}",
+        "otherOptions": {}
+      },
+      "id": "b1a10014-1111-4111-8111-000000000014",
+      "name": "9. Send Failure Alert to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1540,
+        500
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "cred-slack-bot-token",
+          "name": "Slack Morning Brief Bot Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger (Every 1 Hour)": {
+      "main": [
+        [
+          {
+            "node": "1. Fetch Trending GitHub Repos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger (curl / Postman)": {
+      "main": [
+        [
+          {
+            "node": "1. Fetch Trending GitHub Repos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Fetch Trending GitHub Repos": {
+      "main": [
+        [
+          {
+            "node": "2. Filter, Sort & Keep Top 5 (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "8. Format Error & Fallback Log (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Filter, Sort & Keep Top 5 (Code)": {
+      "main": [
+        [
+          {
+            "node": "3a. Enrich: Fetch Repo README API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3a. Enrich: Fetch Repo README API": {
+      "main": [
+        [
+          {
+            "node": "3b. Enrich: HackerNews Sentiment API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "8. Format Error & Fallback Log (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3b. Enrich: HackerNews Sentiment API": {
+      "main": [
+        [
+          {
+            "node": "4. Merge Enriched Digest Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Merge Enriched Digest Payload": {
+      "main": [
+        [
+          {
+            "node": "5. IF Stars > 1000 (Threshold)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. IF Stars > 1000 (Threshold)": {
+      "main": [
+        [
+          {
+            "node": "6a. Post Breakout Digest to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "6b. Log Emerging Repo to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6a. Post Breakout Digest to Slack": {
+      "main": [
+        [
+          {
+            "node": "7. Respond to Webhook (200 OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6b. Log Emerging Repo to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "7. Respond to Webhook (200 OK)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Global Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "8. Format Error & Fallback Log (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Format Error & Fallback Log (Code)": {
+      "main": [
+        [
+          {
+            "node": "9. Send Failure Alert to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "c2f89012-49a1-4b23-9e12-987654321001",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "oytra-qa-assessment-sandhit-karmakar"
+  },
+  "tags": [
+    {
+      "name": "Oytra-Assessment"
+    },
+    {
+      "name": "Morning-Brief"
+    }
+  ]
+}

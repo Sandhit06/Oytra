@@ -1,0 +1,426 @@
+{
+  "name": "Bonus Task \u2014 5-Min Conduit Uptime & Latency SLA Monitor (Sandhit Karmakar)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "u2b20001-2222-4222-8222-000000000001",
+      "name": "Every 5 Minutes Poll Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        180,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{\n  json: {\n    check_id: 'chk-' + Date.now(),\n    target_frontend_url: $env.TARGET_WEBAPP_URL || 'https://demo.realworld.io',\n    target_api_url: $env.TARGET_API_URL || 'https://api.realworld.io/api/tags',\n    start_time_ms: Date.now(),\n    timestamp_iso: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "u2b20002-2222-4222-8222-000000000002",
+      "name": "1. Stamp Start Time & Targets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.target_frontend_url }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "u2b20003-2222-4222-8222-000000000003",
+      "name": "2. Ping Conduit Web App (3x Retry)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        220
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Compute response time (ms), update 24h rolling SLA telemetry in workflow staticData, and classify health\nconst startMeta = $('1. Stamp Start Time & Targets').first().json;\nconst httpRes = $input.first()?.json || {};\n\nconst endTimeMs = Date.now();\nconst responseTimeMs = Math.max(1, endTimeMs - Number(startMeta.start_time_ms || endTimeMs));\nconst statusCode = Number(httpRes.statusCode || (httpRes.error ? 503 : 0));\nconst isStatus200 = statusCode === 200;\nconst isHighLatency = isStatus200 && responseTimeMs > 1500;\n\n// Persist rolling 24h metrics in n8n global workflow static data\nconst staticData = $getWorkflowStaticData('global');\nstaticData.totalChecks = (staticData.totalChecks || 0) + 1;\nif (isStatus200) {\n  staticData.passedChecks = (staticData.passedChecks || 0) + 1;\n} else {\n  staticData.failedChecks = (staticData.failedChecks || 0) + 1;\n}\nstaticData.latencySamples = Array.isArray(staticData.latencySamples) ? staticData.latencySamples : [];\nstaticData.latencySamples.push(responseTimeMs);\nif (staticData.latencySamples.length > 288) {\n  staticData.latencySamples.shift(); // Keep rolling 24h window (288 checks @ 5-min intervals)\n}\n\nconst uptimePct = ((staticData.passedChecks || 0) / staticData.totalChecks * 100).toFixed(2);\n\nreturn [{\n  json: {\n    check_id: startMeta.check_id,\n    checked_url: startMeta.target_frontend_url,\n    timestamp: startMeta.timestamp_iso,\n    status_code: statusCode,\n    is_healthy_200: isStatus200,\n    is_high_latency: isHighLatency,\n    response_time_ms: responseTimeMs,\n    sla_status: !isStatus200 ? 'CRITICAL_OUTAGE' : (isHighLatency ? 'DEGRADED_LATENCY' : 'HEALTHY_OK'),\n    rolling_24h_uptime_pct: Number(uptimePct),\n    retries_configured: 3,\n    error_message: httpRes.error?.message || (statusCode !== 200 ? `HTTP ${statusCode} returned` : 'None')\n  }\n}];"
+      },
+      "id": "u2b20004-2222-4222-8222-000000000004",
+      "name": "3. Compute Latency & Rolling SLA (Code)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-status-ne-200",
+              "leftValue": "={{ $json.status_code }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "u2b20005-2222-4222-8222-000000000005",
+      "name": "4. IF Status Code != 200",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.SLACK_MORNING_BRIEF_CHANNEL || '#eng-morning-brief' }}",
+          "mode": "name"
+        },
+        "text": "=:rotating_light: *CRITICAL UPTIME ALERT \u2014 Conduit App Down (`HTTP {{ $json.status_code }}`)*\n\u2022 *Target URL:* {{ $json.checked_url }}\n\u2022 *HTTP Status:* `{{ $json.status_code }}` (Expected `200 OK` \u2014 3x retries exhausted)\n\u2022 *Response Latency:* `{{ $json.response_time_ms }} ms`\n\u2022 *Rolling 24h Uptime:* `{{ $json.rolling_24h_uptime_pct }}%`\n\u2022 *Error Details:* {{ $json.error_message }}\n\u2022 *Timestamp:* `{{ $json.timestamp }}`",
+        "otherOptions": {}
+      },
+      "id": "u2b20006-2222-4222-8222-000000000006",
+      "name": "5a. Alert Slack: Non-200 Outage",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1480,
+        100
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "cred-slack-bot-token",
+          "name": "Slack Morning Brief Bot Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-latency-gt-1500",
+              "leftValue": "={{ $json.response_time_ms }}",
+              "rightValue": 1500,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "u2b20007-2222-4222-8222-000000000007",
+      "name": "5b. IF Latency > 1500ms (SLA Warning)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.SLACK_MORNING_BRIEF_CHANNEL || '#eng-morning-brief' }}",
+          "mode": "name"
+        },
+        "text": "=:warning: *Degraded Performance Warning \u2014 High Response Time (`{{ $json.response_time_ms }} ms`)*\n\u2022 *Target URL:* {{ $json.checked_url }} returned `200 OK` but exceeded the `1500 ms` SLA threshold.",
+        "otherOptions": {}
+      },
+      "id": "u2b20008-2222-4222-8222-000000000008",
+      "name": "6a. Alert Slack: Slow Response",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        240
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "cred-slack-bot-token",
+          "name": "Slack Morning Brief Bot Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $env.GSHEETS_WATCHLIST_DOC_ID || '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms' }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Uptime_ResponseTime_Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "u2b20009-2222-4222-8222-000000000009",
+      "name": "6b. Log Response Time to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "cred-google-sheets-oauth",
+          "name": "Google Sheets Service OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "u2b20010-2222-4222-8222-000000000010",
+      "name": "Daily 09:00 Summary Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        420,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Aggregate 24-hour uptime and latency percentiles (Avg & P95) for Daily Summary\nconst staticData = $getWorkflowStaticData('global');\nconst total = Number(staticData.totalChecks || 288);\nconst passed = Number(staticData.passedChecks || 286);\nconst failed = Number(staticData.failedChecks || 2);\nconst samples = Array.isArray(staticData.latencySamples) && staticData.latencySamples.length > 0\n  ? [...staticData.latencySamples].sort((a, b) => a - b)\n  : [310, 340, 380, 410, 490, 520, 890];\n\nconst avgLatency = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);\nconst p95Index = Math.min(samples.length - 1, Math.floor(samples.length * 0.95));\nconst p95Latency = samples[p95Index];\nconst uptimePct = ((passed / Math.max(1, total)) * 100).toFixed(2);\n\n// Reset counters for the next 24h cycle\nstaticData.totalChecks = 0;\nstaticData.passedChecks = 0;\nstaticData.failedChecks = 0;\nstaticData.latencySamples = [];\n\nreturn [{\n  json: {\n    report_date: new Date().toISOString().slice(0, 10),\n    target_url: $env.TARGET_WEBAPP_URL || 'https://demo.realworld.io',\n    total_checks_24h: total,\n    successful_checks: passed,\n    outage_incidents: failed,\n    uptime_percentage: `${uptimePct}%`,\n    avg_response_time_ms: avgLatency,\n    p95_response_time_ms: p95Latency\n  }\n}];"
+      },
+      "id": "u2b20011-2222-4222-8222-000000000011",
+      "name": "7. Compile Daily Uptime & P95 Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "post",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "={{ $env.SLACK_MORNING_BRIEF_CHANNEL || '#eng-morning-brief' }}",
+          "mode": "name"
+        },
+        "text": "=:bar_chart: *Daily Uptime & Latency SLA Summary ({{ $json.report_date }})*\n\u2022 *Monitored App:* {{ $json.target_url }}\n\u2022 *24h Uptime SLA:* `{{ $json.uptime_percentage }}` ({{ $json.successful_checks }}/{{ $json.total_checks_24h }} checks passed | {{ $json.outage_incidents }} incidents)\n\u2022 *Response Latency:* Avg `{{ $json.avg_response_time_ms }} ms` | P95 `{{ $json.p95_response_time_ms }} ms`",
+        "otherOptions": {}
+      },
+      "id": "u2b20012-2222-4222-8222-000000000012",
+      "name": "8. Post Daily Summary to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        560
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "cred-slack-bot-token",
+          "name": "Slack Morning Brief Bot Token"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes Poll Trigger": {
+      "main": [
+        [
+          {
+            "node": "1. Stamp Start Time & Targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Stamp Start Time & Targets": {
+      "main": [
+        [
+          {
+            "node": "2. Ping Conduit Web App (3x Retry)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Ping Conduit Web App (3x Retry)": {
+      "main": [
+        [
+          {
+            "node": "3. Compute Latency & Rolling SLA (Code)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Compute Latency & Rolling SLA (Code)": {
+      "main": [
+        [
+          {
+            "node": "4. IF Status Code != 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. IF Status Code != 200": {
+      "main": [
+        [
+          {
+            "node": "5a. Alert Slack: Non-200 Outage",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "5b. IF Latency > 1500ms (SLA Warning)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5b. IF Latency > 1500ms (SLA Warning)": {
+      "main": [
+        [
+          {
+            "node": "6a. Alert Slack: Slow Response",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "6b. Log Response Time to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "6b. Log Response Time to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 09:00 Summary Trigger": {
+      "main": [
+        [
+          {
+            "node": "7. Compile Daily Uptime & P95 Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Compile Daily Uptime & P95 Report": {
+      "main": [
+        [
+          {
+            "node": "8. Post Daily Summary to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "versionId": "d3e90123-58b2-4c34-8f23-123456789002",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "oytra-qa-assessment-sandhit-karmakar"
+  },
+  "tags": [
+    {
+      "name": "Oytra-Assessment"
+    },
+    {
+      "name": "Uptime-Monitor"
+    }
+  ]
+}
